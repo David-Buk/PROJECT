@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "737777042845",
-    "project_id": "project-c9e0f",
-    "storage_bucket": "project-c9e0f.appspot.com"
+    "project_number": "522862554680",
+    "project_id": "sextortion-userinterface-data",
+    "storage_bucket": "sextortion-userinterface-data.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:737777042845:android:864205969e2fe74a501b74",
+        "mobilesdk_app_id": "1:522862554680:android:5f6f749b08500a43a880cd",
         "android_client_info": {
           "package_name": "com.example.project"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCFmkUtc0e2teC3EENRxXjsKJJvQOAXPeE"
+          "current_key": "AIzaSyCsOXzAYKII3YTMMH7zxAnFoI0rfcqyRIA"
         }
       ],
       "services": {
