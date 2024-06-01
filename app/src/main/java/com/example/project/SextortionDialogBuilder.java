@@ -13,7 +13,7 @@ public class SextortionDialogBuilder {
     private Context context;
     private StorageReference imageRef;
 
-    public SextortionDialogBuilder(Context context, StorageReference imageRef) {
+    public SextortionDialogBuilder(Context context) {
         this.context = context;
         this.imageRef = imageRef;
         builder = new AlertDialog.Builder(context);
