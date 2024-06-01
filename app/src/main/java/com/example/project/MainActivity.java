@@ -1,19 +1,21 @@
 package com.example.project;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
-import okhttp3.*;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
@@ -28,10 +30,19 @@ import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.UUID;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
     StorageReference storageReference;
@@ -84,8 +95,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 uploadImage(image);
-                //Intent intent = new Intent(MainActivity.this, ImageListActivity.class);
-                //startActivity(intent);
             }
         });
     }
@@ -153,33 +162,10 @@ public class MainActivity extends AppCompatActivity {
 
                     try {
                         JSONObject jsonObject = new JSONObject(responseBody);
-                        boolean isUnsafe = jsonObject.getBoolean("unsafe");  // Check the "unsafe" key in the response
+                        boolean isUnsafe = jsonObject.getBoolean("unsafe");
 
                         if (isUnsafe) {
-                            // Delete the image from Firebase Storage
-                            ref.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
-                                @Override
-                                public void onSuccess(Void aVoid) {
-                                    Log.d("Firebase", "Image deleted successfully");
-                                    runOnUiThread(() -> {
-                                        Toast.makeText(MainActivity.this, "Image deleted due to inappropriate content", Toast.LENGTH_SHORT).show();
-
-                                        // Show the dialog to the user
-                                        new SextortionDialogBuilder(MainActivity.this)
-                                                .setMessage("The image you uploaded was detected as inappropriate. Would you like to learn more about the dangers of sextortion?")
-                                                .setPositiveButton("Learn More")
-                                                .setNegativeButton("Cancel")
-                                                .show();
-                                    });
-                                }
-                            }).addOnFailureListener(new OnFailureListener() {
-                                @Override
-                                public void onFailure(@NonNull Exception e) {
-                                    Log.e("Firebase", "Failed to delete image: " + e.getMessage());
-                                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Failed to delete image", Toast.LENGTH_SHORT).show());
-                                }
-                            });
-
+                            callAgeDetectionApi(imageUrl, ref);
                         } else {
                             runOnUiThread(() -> Toast.makeText(MainActivity.this, "Image is safe", Toast.LENGTH_SHORT).show());
                         }
@@ -194,4 +180,83 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void callAgeDetectionApi(String imageUrl, StorageReference ref) {
+        OkHttpClient client = new OkHttpClient();
+
+        MediaType mediaType = MediaType.parse("application/json");
+        RequestBody body = RequestBody.create(mediaType, "{\"url\":\"" + imageUrl + "\"}");
+        Request request = new Request.Builder()
+                .url("https://age-detector.p.rapidapi.com/age-detection")
+                .post(body)
+                .addHeader("x-rapidapi-key", "b15b1b33a7msh13e4ac4017ae4a9p1f4deajsn842ee3d5c57a")
+                .addHeader("x-rapidapi-host", "age-detector.p.rapidapi.com")
+                .addHeader("Content-Type", "application/json")
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "API request failed", Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    String responseBody = response.body().string();
+                    Log.d("API Response", responseBody);
+
+                    try {
+                        JSONArray jsonArray = new JSONArray(responseBody);
+                        boolean deleteImage = false;
+
+                        for (int i = 0; i < jsonArray.length(); i++) {
+                            JSONObject faceObject = jsonArray.getJSONObject(i);
+                            int age = faceObject.getInt("age");
+
+                            if (age < 18) {
+                                deleteImage = true;
+                                break;
+                            }
+                        }
+
+                        if (deleteImage) {
+                            // Delete the image from Firebase Storage
+                            ref.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                                @Override
+                                public void onSuccess(Void aVoid) {
+                                    Log.d("Firebase", "Image deleted successfully");
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(MainActivity.this, "Image deleted due to detection of underage person", Toast.LENGTH_SHORT).show();
+
+                                        // Show the dialog to the user
+                                        new AlertDialog.Builder(MainActivity.this)
+                                                .setMessage("Such images are not allowed!")
+                                                .setPositiveButton("Learn More", (dialog, which) -> {
+                                                    Intent intent = new Intent(MainActivity.this, InfoActivity.class);
+                                                    startActivity(intent);})
+                                                .setNegativeButton("Cancel", null)
+                                                .show();
+                                    });
+                                }
+                            }).addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                    Log.e("Firebase", "Failed to delete image: " + e.getMessage());
+                                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Failed to delete image", Toast.LENGTH_SHORT).show());
+                                }
+                            });
+                        } else {
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "This image may be prone to sextortion ", Toast.LENGTH_SHORT).show());
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    Log.e("API Error", "Request failed with code: " + response.code());
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "API request unsuccessful", Toast.LENGTH_SHORT).show());
+                }
+            }
+        });
+    }
 }
