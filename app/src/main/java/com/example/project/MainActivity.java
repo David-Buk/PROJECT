@@ -84,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 uploadImage(image);
+                //Intent intent = new Intent(MainActivity.this, ImageListActivity.class);
+                //startActivity(intent);
             }
         });
     }
@@ -159,7 +161,16 @@ public class MainActivity extends AppCompatActivity {
                                 @Override
                                 public void onSuccess(Void aVoid) {
                                     Log.d("Firebase", "Image deleted successfully");
-                                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Image deleted due to inappropriate content", Toast.LENGTH_SHORT).show());
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(MainActivity.this, "Image deleted due to inappropriate content", Toast.LENGTH_SHORT).show();
+
+                                        // Show the dialog to the user
+                                        new SextortionDialogBuilder(MainActivity.this)
+                                                .setMessage("The image you uploaded was detected as inappropriate. Would you like to learn more about the dangers of sextortion?")
+                                                .setPositiveButton("Learn More")
+                                                .setNegativeButton("Cancel")
+                                                .show();
+                                    });
                                 }
                             }).addOnFailureListener(new OnFailureListener() {
                                 @Override
@@ -168,8 +179,7 @@ public class MainActivity extends AppCompatActivity {
                                     runOnUiThread(() -> Toast.makeText(MainActivity.this, "Failed to delete image", Toast.LENGTH_SHORT).show());
                                 }
                             });
-                            //Intent intent = new Intent(MainActivity.this, ImageListActivity.class);
-                            //startActivity(intent);
+
                         } else {
                             runOnUiThread(() -> Toast.makeText(MainActivity.this, "Image is safe", Toast.LENGTH_SHORT).show());
                         }
